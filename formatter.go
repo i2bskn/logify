@@ -1,21 +1,28 @@
-package logo
+package logify
 
 import (
-	"bytes"
 	"fmt"
 	"time"
 )
 
 type (
 	Formatter interface {
-		Format(*Entry) ([]byte, error)
+		Format(*Entry, []Field) error
 	}
 
 	LTSVFormatter struct{}
 )
 
-func (f *LTSVFormatter) Format(e *Entry) ([]byte, error) {
-	buf := new(bytes.Buffer)
-	fmt.Fprintf(buf, "level:%s\ttime:%s\tmessage:%s", e.Level.String(), e.Time.Format(time.RFC3339), e.Message)
-	return buf.Bytes(), nil
+func (f *LTSVFormatter) Format(e *Entry, fields []Field) error {
+	fmt.Fprintf(
+		e.Buffer,
+		"level:%s\ttime:%s\tmessage:%s",
+		e.Level.String(),
+		e.Time.Format(time.RFC3339),
+		e.Message,
+	)
+	for _, field := range fields {
+		fmt.Fprintf(e.Buffer, "\t%v:%v", field.key, field.value)
+	}
+	return nil
 }

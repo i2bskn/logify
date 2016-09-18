@@ -1,9 +1,9 @@
-package logo
+package logify
 
-type Level uint8
+type LogLevel uint8
 
 const (
-	LevelDebug Level = iota + 1
+	LevelDebug LogLevel = iota + 1
 	LevelInfo
 	LevelWarn
 	LevelError
@@ -11,7 +11,7 @@ const (
 	LevelPanic
 )
 
-func (level Level) String() string {
+func (level LogLevel) String() string {
 	switch level {
 	case LevelDebug:
 		return "debug"

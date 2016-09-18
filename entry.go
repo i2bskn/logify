@@ -1,6 +1,7 @@
-package logo
+package logify
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"time"
@@ -9,38 +10,46 @@ import (
 type Entry struct {
 	Logger  *Logger
 	Time    time.Time
-	Level   Level
+	Level   LogLevel
 	Message string
+	Buffer  *bytes.Buffer
 }
 
 func newEntry(logger *Logger) *Entry {
 	return &Entry{
 		Logger: logger,
+		Buffer: new(bytes.Buffer),
 	}
 }
 
-func (e *Entry) log(level Level, msg string) {
+func (e *Entry) Free() {
+	e.Buffer.Reset()
+	e.Logger.entryPool.Put(e)
+}
+
+func (e *Entry) log(level LogLevel, msg string, fields []Field) {
 	e.Time = time.Now()
 	e.Level = level
 	e.Message = msg
-	b, err := e.Logger.formatter.Format(e)
 
-	e.Logger.mu.Lock()
-	defer e.Logger.mu.Unlock()
-
+	err := e.Logger.formatter.Format(e, fields)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Format error: %v\n", err)
 		return
 	}
 
-	_, err = e.Logger.out.Write(b)
+	e.Logger.mu.Lock()
+	defer e.Logger.mu.Unlock()
+
+	fmt.Fprint(e.Buffer, "\n")
+	_, err = e.Logger.out.Write(e.Buffer.Bytes())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Write error: %v\n", err)
 	}
 }
 
-func (e *Entry) Debug(v ...interface{}) {
+func (e *Entry) Debug(msg string, fields ...Field) {
 	if LevelDebug >= e.Logger.level {
-		e.log(LevelDebug, fmt.Sprint(v...))
+		e.log(LevelDebug, msg, fields)
 	}
 }
