@@ -16,8 +16,9 @@ type Logger struct {
 func New() *Logger {
 	return &Logger{
 		mu:        new(sync.Mutex),
+		level:     LevelDebug,
+		formatter: new(LTSVFormatter),
 		out:       os.Stdout,
-		formatter: &LTSVFormatter{},
 	}
 }
 

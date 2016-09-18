@@ -1,7 +1,8 @@
 package logo
 
 import (
-	"strings"
+	"bytes"
+	"fmt"
 	"time"
 )
 
@@ -14,9 +15,7 @@ type (
 )
 
 func (f *LTSVFormatter) Format(e *Entry) ([]byte, error) {
-	items := make([]string, 0, 0)
-	items = append(items, strings.Join([]string{"level", string(e.Level)}, ":"))
-	items = append(items, strings.Join([]string{"time", e.Time.Format(time.RFC3339)}, ":"))
-	items = append(items, strings.Join([]string{"message", e.Message}, ":"))
-	return []byte(strings.Join(items, "\t") + "\n"), nil
+	buf := new(bytes.Buffer)
+	fmt.Fprintf(buf, "level:%s\ttime:%s\tmessage:%s", e.Level.String(), e.Time.Format(time.RFC3339), e.Message)
+	return buf.Bytes(), nil
 }
