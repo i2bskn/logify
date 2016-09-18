@@ -1,6 +1,6 @@
 package logify
 
-type LogLevel uint8
+type LogLevel int32
 
 const (
 	LevelDebug LogLevel = iota + 1
