@@ -15,7 +15,7 @@ type Logger interface {
 	Unlock()
 	Write([]byte) (int, error)
 	Serializer() Serializer
-	// With(fields ...Field) Logger
+	With(fields ...Field) Logger
 	Debug(string, ...Field)
 	Info(string, ...Field)
 	Warn(string, ...Field)
@@ -24,7 +24,7 @@ type Logger interface {
 	Panic(string, ...Field)
 }
 
-type logger struct {
+type coreLogger struct {
 	mu         sync.Mutex
 	level      LogLevel
 	serializer Serializer
@@ -33,103 +33,107 @@ type logger struct {
 }
 
 func New(w io.Writer, s Serializer, lv LogLevel) Logger {
-	return &logger{
+	return &coreLogger{
 		level:      lv,
 		serializer: s,
 		out:        w,
 	}
 }
 
-func (l *logger) Level() LogLevel {
-	return LogLevel(atomic.LoadInt32((*int32)(&l.level)))
+func (cl *coreLogger) Level() LogLevel {
+	return LogLevel(atomic.LoadInt32((*int32)(&cl.level)))
 }
 
-func (l *logger) SetLevel(lv LogLevel) {
-	atomic.StoreInt32((*int32)(&l.level), int32(lv))
+func (cl *coreLogger) SetLevel(lv LogLevel) {
+	atomic.StoreInt32((*int32)(&cl.level), int32(lv))
 }
 
-func (l *logger) SetOutput(w io.Writer) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.out = w
+func (cl *coreLogger) SetOutput(w io.Writer) {
+	cl.mu.Lock()
+	defer cl.mu.Unlock()
+	cl.out = w
 }
 
-func (l *logger) Lock() {
-	l.mu.Lock()
+func (cl *coreLogger) Lock() {
+	cl.mu.Lock()
 }
 
-func (l *logger) Unlock() {
-	l.mu.Unlock()
+func (cl *coreLogger) Unlock() {
+	cl.mu.Unlock()
 }
 
-func (l *logger) Write(b []byte) (int, error) {
-	n, err := l.out.Write(b)
+func (cl *coreLogger) Write(b []byte) (int, error) {
+	n, err := cl.out.Write(b)
 	return n, err
 }
 
-func (l *logger) Serializer() Serializer {
-	return l.serializer
+func (cl *coreLogger) Serializer() Serializer {
+	return cl.serializer
 }
 
-func (l *logger) Debug(msg string, fields ...Field) {
-	if LevelDebug >= l.Level() {
-		e := l.entry()
+func (cl *coreLogger) With(fields ...Field) Logger {
+	return newFieldedLogger(cl, fields)
+}
+
+func (cl *coreLogger) Debug(msg string, fields ...Field) {
+	if LevelDebug >= cl.Level() {
+		e := cl.entry()
 		e.Debug(msg, fields...)
-		l.freeEntry(e)
+		cl.freeEntry(e)
 	}
 }
 
-func (l *logger) Info(msg string, fields ...Field) {
-	if LevelInfo >= l.Level() {
-		e := l.entry()
+func (cl *coreLogger) Info(msg string, fields ...Field) {
+	if LevelInfo >= cl.Level() {
+		e := cl.entry()
 		e.Info(msg, fields...)
-		l.freeEntry(e)
+		cl.freeEntry(e)
 	}
 }
 
-func (l *logger) Warn(msg string, fields ...Field) {
-	if LevelWarn >= l.Level() {
-		e := l.entry()
+func (cl *coreLogger) Warn(msg string, fields ...Field) {
+	if LevelWarn >= cl.Level() {
+		e := cl.entry()
 		e.Warn(msg, fields...)
-		l.freeEntry(e)
+		cl.freeEntry(e)
 	}
 }
 
-func (l *logger) Error(msg string, fields ...Field) {
-	if LevelError >= l.Level() {
-		e := l.entry()
+func (cl *coreLogger) Error(msg string, fields ...Field) {
+	if LevelError >= cl.Level() {
+		e := cl.entry()
 		e.Error(msg, fields...)
-		l.freeEntry(e)
+		cl.freeEntry(e)
 	}
 }
 
-func (l *logger) Fatal(msg string, fields ...Field) {
-	if LevelInfo >= l.Level() {
-		e := l.entry()
+func (cl *coreLogger) Fatal(msg string, fields ...Field) {
+	if LevelInfo >= cl.Level() {
+		e := cl.entry()
 		e.Fatal(msg, fields...)
-		l.freeEntry(e)
+		cl.freeEntry(e)
 	}
 }
 
-func (l *logger) Panic(msg string, fields ...Field) {
-	if LevelInfo >= l.Level() {
-		e := l.entry()
+func (cl *coreLogger) Panic(msg string, fields ...Field) {
+	if LevelInfo >= cl.Level() {
+		e := cl.entry()
 		e.Panic(msg, fields...)
-		l.freeEntry(e)
+		cl.freeEntry(e)
 	}
 }
 
-func (l *logger) entry() *Entry {
-	entry, ok := l.entryPool.Get().(*Entry)
+func (cl *coreLogger) entry() *Entry {
+	entry, ok := cl.entryPool.Get().(*Entry)
 	if ok {
 		return entry
 	}
-	return newEntry(l)
+	return newEntry(cl)
 }
 
-func (l *logger) freeEntry(e *Entry) {
+func (cl *coreLogger) freeEntry(e *Entry) {
 	e.Reset()
-	l.entryPool.Put(e)
+	cl.entryPool.Put(e)
 }
 
 var std = New(os.Stdout, new(LTSVSerializer), LevelDebug)
