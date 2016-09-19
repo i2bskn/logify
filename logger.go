@@ -14,7 +14,7 @@ type Logger interface {
 	Lock()
 	Unlock()
 	Write([]byte) (int, error)
-	Formatter() Formatter
+	Serializer() Serializer
 	// With(fields ...Field) Logger
 	Debug(string, ...Field)
 	Info(string, ...Field)
@@ -25,18 +25,18 @@ type Logger interface {
 }
 
 type logger struct {
-	mu        sync.Mutex
-	level     LogLevel
-	formatter Formatter
-	out       io.Writer
-	entryPool sync.Pool
+	mu         sync.Mutex
+	level      LogLevel
+	serializer Serializer
+	out        io.Writer
+	entryPool  sync.Pool
 }
 
-func New(w io.Writer, f Formatter, lv LogLevel) Logger {
+func New(w io.Writer, s Serializer, lv LogLevel) Logger {
 	return &logger{
-		level:     lv,
-		formatter: f,
-		out:       w,
+		level:      lv,
+		serializer: s,
+		out:        w,
 	}
 }
 
@@ -67,8 +67,8 @@ func (l *logger) Write(b []byte) (int, error) {
 	return n, err
 }
 
-func (l *logger) Formatter() Formatter {
-	return l.formatter
+func (l *logger) Serializer() Serializer {
+	return l.serializer
 }
 
 func (l *logger) Debug(msg string, fields ...Field) {
@@ -132,7 +132,7 @@ func (l *logger) freeEntry(e *Entry) {
 	l.entryPool.Put(e)
 }
 
-var std = New(os.Stdout, new(LTSVFormatter), LevelDebug)
+var std = New(os.Stdout, new(LTSVSerializer), LevelDebug)
 
 func Level() LogLevel {
 	return std.Level()

@@ -31,9 +31,9 @@ func (e *Entry) log(level LogLevel, msg string, fields []Field) {
 	e.Level = level
 	e.Message = msg
 
-	err := e.Logger.Formatter().Format(e, fields)
+	err := e.Logger.Serializer().Serialize(e, fields)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Format error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Serialize error: %v\n", err)
 		return
 	}
 
