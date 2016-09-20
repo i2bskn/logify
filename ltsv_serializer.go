@@ -7,23 +7,22 @@ import (
 
 type LTSVSerializer struct{}
 
-func (f *LTSVSerializer) Serialize(e *Entry, fields []Field) error {
-	fmt.Fprintf(
-		e.Buffer,
-		"level:%s\ttime:%s\tmessage:%s",
-		e.Level.String(),
-		e.Time.Format(time.RFC3339),
-		e.Message,
-	)
-	if len(fields) > 0 {
-		b := make([]byte, 0, 100)
-		for _, field := range fields {
-			b = append(b, '\t')
-			b = append(b, field.key...)
-			b = append(b, ':')
-			b = append(b, fmt.Sprint(field.value)...)
+func (f *LTSVSerializer) Serialize(e *Entry) error {
+	e.Buffer = append(e.Buffer, "level:"...)
+	e.Buffer = append(e.Buffer, e.Level.String()...)
+	e.Buffer = append(e.Buffer, "\ttime:"...)
+	e.Buffer = append(e.Buffer, e.Time.Format(time.RFC3339)...)
+	e.Buffer = append(e.Buffer, "\tmessage:"...)
+	e.Buffer = append(e.Buffer, e.Message...)
+
+	if len(e.Fields) > 0 {
+		for _, field := range e.Fields {
+			e.Buffer = append(e.Buffer, '\t')
+			e.Buffer = append(e.Buffer, field.key...)
+			e.Buffer = append(e.Buffer, ':')
+			e.Buffer = append(e.Buffer, fmt.Sprint(field.value)...)
 		}
-		e.Buffer.Write(b)
 	}
+	e.Buffer = append(e.Buffer, '\n')
 	return nil
 }

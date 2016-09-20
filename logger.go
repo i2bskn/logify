@@ -1,6 +1,7 @@
 package logify
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"sync"
@@ -11,10 +12,6 @@ type Logger interface {
 	Level() LogLevel
 	SetLevel(LogLevel)
 	SetOutput(io.Writer)
-	Lock()
-	Unlock()
-	Write([]byte) (int, error)
-	Serializer() Serializer
 	With(fields ...Field) Logger
 	Debug(string, ...Field)
 	Info(string, ...Field)
@@ -29,7 +26,6 @@ type coreLogger struct {
 	level      LogLevel
 	serializer Serializer
 	out        io.Writer
-	entryPool  sync.Pool
 }
 
 func New(w io.Writer, s Serializer, lv LogLevel) Logger {
@@ -54,134 +50,94 @@ func (cl *coreLogger) SetOutput(w io.Writer) {
 	cl.out = w
 }
 
-func (cl *coreLogger) Lock() {
-	cl.mu.Lock()
-}
-
-func (cl *coreLogger) Unlock() {
-	cl.mu.Unlock()
-}
-
-func (cl *coreLogger) Write(b []byte) (int, error) {
-	n, err := cl.out.Write(b)
-	return n, err
-}
-
-func (cl *coreLogger) Serializer() Serializer {
-	return cl.serializer
-}
-
 func (cl *coreLogger) With(fields ...Field) Logger {
 	return newFieldedLogger(cl, fields)
 }
 
 func (cl *coreLogger) Debug(msg string, fields ...Field) {
-	if LevelDebug >= cl.Level() {
-		e := cl.entry()
-		e.Debug(msg, fields...)
-		cl.freeEntry(e)
-	}
+	cl.log(DebugLevel, msg, fields)
 }
 
 func (cl *coreLogger) Info(msg string, fields ...Field) {
-	if LevelInfo >= cl.Level() {
-		e := cl.entry()
-		e.Info(msg, fields...)
-		cl.freeEntry(e)
-	}
+	cl.log(InfoLevel, msg, fields)
 }
 
 func (cl *coreLogger) Warn(msg string, fields ...Field) {
-	if LevelWarn >= cl.Level() {
-		e := cl.entry()
-		e.Warn(msg, fields...)
-		cl.freeEntry(e)
-	}
+	cl.log(WarnLevel, msg, fields)
 }
 
 func (cl *coreLogger) Error(msg string, fields ...Field) {
-	if LevelError >= cl.Level() {
-		e := cl.entry()
-		e.Error(msg, fields...)
-		cl.freeEntry(e)
-	}
+	cl.log(ErrorLevel, msg, fields)
 }
 
 func (cl *coreLogger) Fatal(msg string, fields ...Field) {
-	if LevelInfo >= cl.Level() {
-		e := cl.entry()
-		e.Fatal(msg, fields...)
-		cl.freeEntry(e)
-	}
+	cl.log(FatalLevel, msg, fields)
 }
 
 func (cl *coreLogger) Panic(msg string, fields ...Field) {
-	if LevelInfo >= cl.Level() {
-		e := cl.entry()
-		e.Panic(msg, fields...)
-		cl.freeEntry(e)
+	cl.log(PanicLevel, msg, fields)
+}
+
+func (cl *coreLogger) log(lv LogLevel, msg string, fields []Field) {
+	if lv < cl.Level() {
+		return
 	}
-}
 
-func (cl *coreLogger) entry() *Entry {
-	entry, ok := cl.entryPool.Get().(*Entry)
-	if ok {
-		return entry
+	e := newEntry(lv, msg, fields)
+	err := cl.serializer.Serialize(e)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Serialize error: %v\n", err)
+		return
 	}
-	return newEntry(cl)
+
+	_, err = cl.write(e.Buffer)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Write error: %v\n", err)
+	}
+	e.free()
 }
 
-func (cl *coreLogger) freeEntry(e *Entry) {
-	e.Reset()
-	cl.entryPool.Put(e)
+func (cl *coreLogger) write(b []byte) (int, error) {
+	cl.mu.Lock()
+	defer cl.mu.Unlock()
+	n, err := cl.out.Write(b)
+	return n, err
 }
 
-var std = New(os.Stdout, new(LTSVSerializer), LevelDebug)
+var defaultLogger = New(os.Stdout, new(LTSVSerializer), DebugLevel)
 
 func Level() LogLevel {
-	return std.Level()
+	return defaultLogger.Level()
 }
 
 func SetLevel(lv LogLevel) {
-	std.SetLevel(lv)
+	defaultLogger.SetLevel(lv)
 }
 
 func SetOutput(w io.Writer) {
-	std.SetOutput(w)
+	defaultLogger.SetOutput(w)
 }
 
 func Debug(msg string, fields ...Field) {
-	if LevelDebug >= std.Level() {
-		std.Debug(msg, fields...)
-	}
+	defaultLogger.Debug(msg, fields...)
 }
 
 func Info(msg string, fields ...Field) {
-	if LevelInfo >= std.Level() {
-		std.Info(msg, fields...)
-	}
+	defaultLogger.Info(msg, fields...)
 }
 
 func Warn(msg string, fields ...Field) {
-	if LevelWarn >= std.Level() {
-		std.Warn(msg, fields...)
-	}
+	defaultLogger.Warn(msg, fields...)
 }
 
 func Error(msg string, fields ...Field) {
-	if LevelError >= std.Level() {
-		std.Error(msg, fields...)
-	}
+	defaultLogger.Error(msg, fields...)
 }
 
 func Fatal(msg string, fields ...Field) {
-	if LevelFatal >= std.Level() {
-		std.Fatal(msg, fields...)
-	}
+	defaultLogger.Fatal(msg, fields...)
 }
 
 func Panic(msg string, fields ...Field) {
-	if LevelPanic >= std.Level() {
-		std.Panic(msg, fields...)
-	}
+	defaultLogger.Panic(msg, fields...)
 }

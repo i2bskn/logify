@@ -3,27 +3,27 @@ package logify
 type LogLevel int32
 
 const (
-	LevelDebug LogLevel = iota + 1
-	LevelInfo
-	LevelWarn
-	LevelError
-	LevelFatal
-	LevelPanic
+	DebugLevel LogLevel = iota + 1
+	InfoLevel
+	WarnLevel
+	ErrorLevel
+	FatalLevel
+	PanicLevel
 )
 
 func (level LogLevel) String() string {
 	switch level {
-	case LevelDebug:
+	case DebugLevel:
 		return "debug"
-	case LevelInfo:
+	case InfoLevel:
 		return "info"
-	case LevelWarn:
+	case WarnLevel:
 		return "warn"
-	case LevelError:
+	case ErrorLevel:
 		return "error"
-	case LevelFatal:
+	case FatalLevel:
 		return "fatal"
-	case LevelPanic:
+	case PanicLevel:
 		return "panic"
 	default:
 		return "unknown"

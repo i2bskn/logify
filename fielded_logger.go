@@ -28,23 +28,6 @@ func (fl *fieldedLogger) SetOutput(w io.Writer) {
 	fl.logger.SetOutput(w)
 }
 
-func (fl *fieldedLogger) Lock() {
-	fl.logger.Lock()
-}
-
-func (fl *fieldedLogger) Unlock() {
-	fl.logger.Unlock()
-}
-
-func (fl *fieldedLogger) Write(b []byte) (int, error) {
-	n, err := fl.logger.Write(b)
-	return n, err
-}
-
-func (fl *fieldedLogger) Serializer() Serializer {
-	return fl.logger.Serializer()
-}
-
 func (fl *fieldedLogger) With(fields ...Field) Logger {
 	return fl.logger.With(fields...)
 }

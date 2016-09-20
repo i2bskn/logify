@@ -1,5 +1,5 @@
 package logify
 
 type Serializer interface {
-	Serialize(*Entry, []Field) error
+	Serialize(*Entry) error
 }
