@@ -29,11 +29,13 @@ type coreLogger struct {
 }
 
 func New(w io.Writer, s Serializer, lv LogLevel) Logger {
-	return &coreLogger{
+	l := &coreLogger{
 		level:      lv,
 		serializer: s,
 		out:        w,
 	}
+
+	return l
 }
 
 func (cl *coreLogger) Level() LogLevel {
@@ -72,10 +74,12 @@ func (cl *coreLogger) Error(msg string, fields ...Field) {
 
 func (cl *coreLogger) Fatal(msg string, fields ...Field) {
 	cl.log(FatalLevel, msg, fields)
+	os.Exit(1)
 }
 
 func (cl *coreLogger) Panic(msg string, fields ...Field) {
 	cl.log(PanicLevel, msg, fields)
+	panic(msg)
 }
 
 func (cl *coreLogger) log(lv LogLevel, msg string, fields []Field) {
@@ -84,6 +88,7 @@ func (cl *coreLogger) log(lv LogLevel, msg string, fields []Field) {
 	}
 
 	e := newEntry(lv, msg, fields)
+	defer e.free()
 	err := cl.serializer.Serialize(e)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Serialize error: %v\n", err)
@@ -93,8 +98,8 @@ func (cl *coreLogger) log(lv LogLevel, msg string, fields []Field) {
 	_, err = cl.write(e.Buffer)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Write error: %v\n", err)
+		return
 	}
-	e.free()
 }
 
 func (cl *coreLogger) write(b []byte) (int, error) {
