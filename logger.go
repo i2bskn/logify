@@ -25,14 +25,14 @@ type coreLogger struct {
 	mu         sync.Mutex
 	level      LogLevel
 	serializer Serializer
-	out        io.Writer
+	out        Writer
 }
 
 func New(w io.Writer, s Serializer, lv LogLevel) Logger {
 	l := &coreLogger{
 		level:      lv,
 		serializer: s,
-		out:        w,
+		out:        NewWriter(w),
 	}
 
 	return l
@@ -49,7 +49,7 @@ func (cl *coreLogger) SetLevel(lv LogLevel) {
 func (cl *coreLogger) SetOutput(w io.Writer) {
 	cl.mu.Lock()
 	defer cl.mu.Unlock()
-	cl.out = w
+	cl.out = NewWriter(w)
 }
 
 func (cl *coreLogger) With(fields ...Field) Logger {
@@ -99,6 +99,10 @@ func (cl *coreLogger) log(lv LogLevel, msg string, fields []Field) {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Write error: %v\n", err)
 		return
+	}
+
+	if lv >= FatalLevel {
+		cl.out.Flush()
 	}
 }
 
