@@ -53,3 +53,19 @@ func TestString(t *testing.T) {
 		t.Fatalf("Expected %v, but %v", stringType, field.fieldType)
 	}
 }
+
+func TestAny(t *testing.T) {
+	expected := "example"
+	field := Any(key, expected)
+	if field.key != key {
+		t.Fatalf("Expected %v, but %v", key, field.key)
+	}
+
+	if field.value.(string) != expected {
+		t.Fatalf("Expected %v, but %v", expected, field.value.(string))
+	}
+
+	if field.fieldType != anyType {
+		t.Fatalf("Expected %v, but %v", anyType, field.fieldType)
+	}
+}

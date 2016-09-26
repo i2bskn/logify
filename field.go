@@ -6,6 +6,7 @@ const (
 	boolType fieldType = iota + 1
 	intType
 	stringType
+	anyType
 )
 
 type Field struct {
@@ -24,4 +25,8 @@ func Int(key string, value int) Field {
 
 func String(key, value string) Field {
 	return Field{key: key, value: value, fieldType: stringType}
+}
+
+func Any(key string, value interface{}) Field {
+	return Field{key: key, value: value, fieldType: anyType}
 }
