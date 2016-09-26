@@ -6,48 +6,37 @@ import (
 
 type Writer interface {
 	io.Writer
-	Flush() error
+	Sync() error
 }
 
-type syncableWriter interface {
+type flushableWriter interface {
 	io.Writer
-	Sync() error
+	Flush() error
 }
 
 func NewWriter(w io.Writer) Writer {
 	switch w := w.(type) {
 	case Writer:
 		return w
-	case syncableWriter:
-		return syncWriter{baseWriter: w}
+	case flushableWriter:
+		return flushWriter{w}
 	default:
-		return defaultWriter{baseWriter: w}
+		return defaultWriter{w}
 	}
 }
 
-type syncWriter struct {
-	baseWriter syncableWriter
+type flushWriter struct {
+	flushableWriter
 }
 
-func (sw syncWriter) Write(b []byte) (int, error) {
-	n, err := sw.baseWriter.Write(b)
-	return n, err
-}
-
-func (sw syncWriter) Flush() error {
-	err := sw.baseWriter.Sync()
-	return err
+func (sw flushWriter) Sync() error {
+	return sw.Flush()
 }
 
 type defaultWriter struct {
-	baseWriter io.Writer
+	io.Writer
 }
 
-func (dw defaultWriter) Write(b []byte) (int, error) {
-	n, err := dw.Write(b)
-	return n, err
-}
-
-func (dw defaultWriter) Flush() error {
+func (dw defaultWriter) Sync() error {
 	return nil
 }

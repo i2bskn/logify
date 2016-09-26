@@ -21,7 +21,7 @@ type Logger interface {
 	Panic(string, ...Field)
 }
 
-type coreLogger struct {
+type logger struct {
 	mu         sync.Mutex
 	level      LogLevel
 	serializer Serializer
@@ -29,7 +29,7 @@ type coreLogger struct {
 }
 
 func New(w io.Writer, s Serializer, lv LogLevel) Logger {
-	l := &coreLogger{
+	l := &logger{
 		level:      lv,
 		serializer: s,
 		out:        NewWriter(w),
@@ -38,115 +38,115 @@ func New(w io.Writer, s Serializer, lv LogLevel) Logger {
 	return l
 }
 
-func (cl *coreLogger) Level() LogLevel {
-	return LogLevel(atomic.LoadInt32((*int32)(&cl.level)))
+func (l *logger) Level() LogLevel {
+	return LogLevel(atomic.LoadInt32((*int32)(&l.level)))
 }
 
-func (cl *coreLogger) SetLevel(lv LogLevel) {
-	atomic.StoreInt32((*int32)(&cl.level), int32(lv))
+func (l *logger) SetLevel(lv LogLevel) {
+	atomic.StoreInt32((*int32)(&l.level), int32(lv))
 }
 
-func (cl *coreLogger) SetOutput(w io.Writer) {
-	cl.mu.Lock()
-	defer cl.mu.Unlock()
-	cl.out = NewWriter(w)
+func (l *logger) SetOutput(w io.Writer) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.out = NewWriter(w)
 }
 
-func (cl *coreLogger) With(fields ...Field) Logger {
-	return newFieldedLogger(cl, fields)
+func (l *logger) With(fields ...Field) Logger {
+	return newFieldedLogger(l, fields)
 }
 
-func (cl *coreLogger) Debug(msg string, fields ...Field) {
-	cl.log(DebugLevel, msg, fields)
+func (l *logger) Debug(msg string, fields ...Field) {
+	l.log(DebugLevel, msg, fields)
 }
 
-func (cl *coreLogger) Info(msg string, fields ...Field) {
-	cl.log(InfoLevel, msg, fields)
+func (l *logger) Info(msg string, fields ...Field) {
+	l.log(InfoLevel, msg, fields)
 }
 
-func (cl *coreLogger) Warn(msg string, fields ...Field) {
-	cl.log(WarnLevel, msg, fields)
+func (l *logger) Warn(msg string, fields ...Field) {
+	l.log(WarnLevel, msg, fields)
 }
 
-func (cl *coreLogger) Error(msg string, fields ...Field) {
-	cl.log(ErrorLevel, msg, fields)
+func (l *logger) Error(msg string, fields ...Field) {
+	l.log(ErrorLevel, msg, fields)
 }
 
-func (cl *coreLogger) Fatal(msg string, fields ...Field) {
-	cl.log(FatalLevel, msg, fields)
+func (l *logger) Fatal(msg string, fields ...Field) {
+	l.log(FatalLevel, msg, fields)
 	os.Exit(1)
 }
 
-func (cl *coreLogger) Panic(msg string, fields ...Field) {
-	cl.log(PanicLevel, msg, fields)
+func (l *logger) Panic(msg string, fields ...Field) {
+	l.log(PanicLevel, msg, fields)
 	panic(msg)
 }
 
-func (cl *coreLogger) log(lv LogLevel, msg string, fields []Field) {
-	if lv < cl.Level() {
+func (l *logger) log(lv LogLevel, msg string, fields []Field) {
+	if lv < l.Level() {
 		return
 	}
 
 	e := newEntry(lv, msg, fields)
 	defer e.free()
-	err := cl.serializer.Serialize(e)
+	err := l.serializer.Serialize(e)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Serialize error: %v\n", err)
 		return
 	}
 
-	_, err = cl.write(e.Buffer)
+	_, err = l.write(e.Buffer)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Write error: %v\n", err)
 		return
 	}
 
 	if lv >= FatalLevel {
-		cl.out.Flush()
+		l.out.Sync()
 	}
 }
 
-func (cl *coreLogger) write(b []byte) (int, error) {
-	cl.mu.Lock()
-	defer cl.mu.Unlock()
-	n, err := cl.out.Write(b)
+func (l *logger) write(b []byte) (int, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	n, err := l.out.Write(b)
 	return n, err
 }
 
-var defaultLogger = New(os.Stdout, new(LTSVSerializer), DebugLevel)
+var std = New(os.Stdout, new(LTSVSerializer), DebugLevel)
 
 func Level() LogLevel {
-	return defaultLogger.Level()
+	return std.Level()
 }
 
 func SetLevel(lv LogLevel) {
-	defaultLogger.SetLevel(lv)
+	std.SetLevel(lv)
 }
 
 func SetOutput(w io.Writer) {
-	defaultLogger.SetOutput(w)
+	std.SetOutput(w)
 }
 
 func Debug(msg string, fields ...Field) {
-	defaultLogger.Debug(msg, fields...)
+	std.Debug(msg, fields...)
 }
 
 func Info(msg string, fields ...Field) {
-	defaultLogger.Info(msg, fields...)
+	std.Info(msg, fields...)
 }
 
 func Warn(msg string, fields ...Field) {
-	defaultLogger.Warn(msg, fields...)
+	std.Warn(msg, fields...)
 }
 
 func Error(msg string, fields ...Field) {
-	defaultLogger.Error(msg, fields...)
+	std.Error(msg, fields...)
 }
 
 func Fatal(msg string, fields ...Field) {
-	defaultLogger.Fatal(msg, fields...)
+	std.Fatal(msg, fields...)
 }
 
 func Panic(msg string, fields ...Field) {
-	defaultLogger.Panic(msg, fields...)
+	std.Panic(msg, fields...)
 }

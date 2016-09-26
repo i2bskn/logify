@@ -34,4 +34,5 @@ func newEntry(lv LogLevel, msg string, fields []Field) *Entry {
 
 func (e *Entry) free() {
 	e.Buffer = e.Buffer[:0]
+	entryPool.Put(e)
 }
