@@ -15,11 +15,11 @@ type flushableWriter interface {
 }
 
 func NewWriter(w io.Writer) Writer {
-	switch w := w.(type) {
+	switch w.(type) {
 	case Writer:
-		return w
+		return w.(Writer)
 	case flushableWriter:
-		return flushWriter{w}
+		return flushWriter{w.(flushableWriter)}
 	default:
 		return defaultWriter{w}
 	}

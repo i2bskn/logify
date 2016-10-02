@@ -113,7 +113,7 @@ func (l *logger) write(b []byte) (int, error) {
 	return n, err
 }
 
-var std = New(os.Stdout, new(LTSVSerializer), DebugLevel)
+var std = New(os.Stdout, new(LTSVSerializer), InfoLevel)
 
 func Level() LogLevel {
 	return std.Level()
